@@ -1,0 +1,229 @@
+-- Fly V1 Mobile Optimized for Delta Executor (Team Delta) - 2026
+-- Botones en pantalla + controles táctiles
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local flying = false
+local flySpeed = 50
+local bodyVelocity, bodyGyro
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Frame principal
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 280, 0, 220)
+mainFrame.Position = UDim2.new(0.02, 0, 0.4, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.BackgroundTransparency = 0.1
+mainFrame.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.BackgroundTransparency = 1
+title.Text = "Fly V1 Mobile - Delta Executor"
+title.TextColor3 = Color3.fromRGB(0, 255, 100)
+title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.Parent = mainFrame
+
+-- Botón Toggle Fly
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0.9, 0, 0, 50)
+toggleBtn.Position = UDim2.new(0.05, 0, 0.25, 0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+toggleBtn.Text = "ACTIVAR FLY"
+toggleBtn.TextColor3 = Color3.new(1,1,1)
+toggleBtn.TextScaled = true
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.Parent = mainFrame
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 8)
+toggleCorner.Parent = toggleBtn
+
+-- Slider de velocidad
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(0.9, 0, 0, 30)
+speedLabel.Position = UDim2.new(0.05, 0, 0.55, 0)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Velocidad: 50"
+speedLabel.TextColor3 = Color3.new(1,1,1)
+speedLabel.TextScaled = true
+speedLabel.Parent = mainFrame
+
+local speedSlider = Instance.new("Frame")
+speedSlider.Size = UDim2.new(0.9, 0, 0, 20)
+speedSlider.Position = UDim2.new(0.05, 0, 0.68, 0)
+speedSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+speedSlider.Parent = mainFrame
+
+local sliderBar = Instance.new("Frame")
+sliderBar.Size = UDim2.new(0.5, 0, 1, 0)
+sliderBar.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+sliderBar.Parent = speedSlider
+
+local sliderCorner = Instance.new("UICorner")
+sliderCorner.Parent = speedSlider
+local barCorner = Instance.new("UICorner")
+barCorner.Parent = sliderBar
+
+-- Botones de dirección (arriba/abajo)
+local upBtn = Instance.new("TextButton")
+upBtn.Size = UDim2.new(0.4, 0, 0, 45)
+upBtn.Position = UDim2.new(0.05, 0, 0.8, 0)
+upBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 255)
+upBtn.Text = "↑ SUBIR"
+upBtn.TextColor3 = Color3.new(1,1,1)
+upBtn.TextScaled = true
+upBtn.Parent = mainFrame
+
+local downBtn = Instance.new("TextButton")
+downBtn.Size = UDim2.new(0.4, 0, 0, 45)
+downBtn.Position = UDim2.new(0.55, 0, 0.8, 0)
+downBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
+downBtn.Text = "↓ BAJAR"
+downBtn.TextColor3 = Color3.new(1,1,1)
+downBtn.TextScaled = true
+downBtn.Parent = mainFrame
+
+-- Funciones de vuelo
+local function startFlying()
+    if flying then return end
+    flying = true
+    toggleBtn.Text = "DESACTIVAR FLY"
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+    
+    local character = player.Character or player.CharacterAdded:Wait()
+    local root = character:WaitForChild("HumanoidRootPart")
+    local humanoid = character:WaitForChild("Humanoid")
+    
+    humanoid.PlatformStand = true
+    
+    bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+    bodyVelocity.Velocity = Vector3.new(0,0,0)
+    bodyVelocity.Parent = root
+    
+    bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+    bodyGyro.P = 12500
+    bodyGyro.Parent = root
+    
+    spawn(function()
+        while flying and character.Parent do
+            local moveDir = Vector3.new(0, 0, 0)
+            
+            -- Dirección de la cámara (adelante)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService.TouchEnabled then
+                moveDir = moveDir + camera.CFrame.LookVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                moveDir = moveDir - camera.CFrame.LookVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                moveDir = moveDir - camera.CFrame.RightVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                moveDir = moveDir + camera.CFrame.RightVector
+            end
+            
+            bodyVelocity.Velocity = moveDir.Unit * flySpeed
+            bodyGyro.CFrame = camera.CFrame
+            RunService.RenderStepped:Wait()
+        end
+    end)
+end
+
+local function stopFlying()
+    flying = false
+    toggleBtn.Text = "ACTIVAR FLY"
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    
+    if bodyVelocity then bodyVelocity:Destroy() end
+    if bodyGyro then bodyGyro:Destroy() end
+    
+    local character = player.Character
+    if character and character:FindFirstChild("Humanoid") then
+        character.Humanoid.PlatformStand = false
+    end
+end
+
+-- Eventos
+toggleBtn.MouseButton1Click:Connect(function()
+    if flying then
+        stopFlying()
+    else
+        startFlying()
+    end
+end)
+
+-- Slider velocidad
+local dragging = false
+speedSlider.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+    end
+end)
+
+speedSlider.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if dragging then
+        local mousePos = UserInputService:GetMouseLocation().X
+        local sliderPos = speedSlider.AbsolutePosition.X
+        local sliderWidth = speedSlider.AbsoluteSize.X
+        
+        local percent = math.clamp((mousePos - sliderPos) / sliderWidth, 0, 1)
+        sliderBar.Size = UDim2.new(percent, 0, 1, 0)
+        
+        flySpeed = math.floor(30 + percent * 120)  -- de 30 a 150
+        speedLabel.Text = "Velocidad: " .. flySpeed
+    end
+end)
+
+-- Botones subir/bajar (mantener presionado)
+upBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        spawn(function()
+            while upBtn:IsDescendantOf(game) and (input.UserInputState == Enum.UserInputState.Begin) do
+                if flying and bodyVelocity then
+                    bodyVelocity.Velocity = bodyVelocity.Velocity + Vector3.new(0, flySpeed/2, 0)
+                end
+                wait(0.05)
+            end
+        end)
+    end
+end)
+
+downBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        spawn(function()
+            while downBtn:IsDescendantOf(game) and (input.UserInputState == Enum.UserInputState.Begin) do
+                if flying and bodyVelocity then
+                    bodyVelocity.Velocity = bodyVelocity.Velocity - Vector3.new(0, flySpeed/2, 0)
+                end
+                wait(0.05)
+            end
+        end)
+    end
+end)
+
+print("✅ Fly V1 Mobile cargado en Delta Executor")
+print("Usa los botones en pantalla para volar")
